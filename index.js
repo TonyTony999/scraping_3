@@ -580,8 +580,8 @@ async function getDefinitiveResults(){
 async function deleteAfter7days(){
     let one_24_day= 86400000
     let one_week=one_24_day*7
-    let random_hour_margin= Math.round(Math.random()*3600000 )
-    let week_plus_margin= new Date(one_week+random_hour_margin).toString()
+   // let random_hour_margin= Math.round(Math.random()*3600000 )
+    //let week_plus_margin= new Date(one_week+random_hour_margin).toString()
     let current_Date=Date.now()
     let arr = await carArray.find({})
     
@@ -603,13 +603,21 @@ async function deleteAfter7days(){
     
 }
 
+///SET INTERVAL FUNCTION THAT EXECUTES EVERY 24 HOURS TO SCRAPE NEW CAR POSTS
+
 async function delete_older_posts_and_scrape_new (){
-   await deleteAfter7days().then(res=>{
-       console.log("deleted older cars")
-       setTimeout(async x=>{
-           await getDefinitiveResults()
-       })
-   },900000)
+let random_hour_margin= Math.round(Math.random()*3600000 )
+  setInterval(async x=>{
+    await deleteAfter7days().then(res=>{
+        console.log(`deleted other cars at ${new Date(Date.now()).toString()}`)
+        setTimeout(async x=>{
+          console.log(`started scraping at ${new Date(Date.now()).toString()}`)
+            await getDefinitiveResults()
+        },900000)
+    })
+
+  },86400000+random_hour_margin)
+   
 }
 
 delete_older_posts_and_scrape_new()
@@ -618,7 +626,7 @@ delete_older_posts_and_scrape_new()
 //console.log("working")
 //removeArrayElement()
 
-//addCarsToArray("Sat Dec 19 2020")
+//addCarsToArray("Tue Feb 16 2021")
 //verifyCarArr()
 
 /*setInterval(()=>{
@@ -635,9 +643,10 @@ delete_older_posts_and_scrape_new()
     console.log("removed", res))*/
 
 
-//deleteScrape3Cars("Tue Feb 16 2021")
-//deleteScrape3("Tue Feb 16 2021")
-//removeArrayElement("Tue Feb 16 2021")
+/*deleteScrape3Cars()
+deleteScrape3()
+removeArrayElement()*/
+
 //deleteScrape3Cars("Sat Dec 19 2020")
 
 //getDefResults()
