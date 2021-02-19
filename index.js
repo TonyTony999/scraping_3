@@ -607,7 +607,7 @@ async function deleteAfter7days(){
 
 async function delete_older_posts_and_scrape_new (){
 let random_hour_margin= Math.round(Math.random()*3600000 )
-  setInterval(async x=>{
+  setTimeout(async x=>{
     await deleteAfter7days().then(res=>{
         console.log(`deleted other cars at ${new Date(Date.now()).toString()}`)
         setTimeout(async x=>{
