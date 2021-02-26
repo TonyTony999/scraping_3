@@ -2,14 +2,14 @@ const axios = require("axios")
 const mongoose = require("mongoose")
 const cheerio = require("cheerio")
 
-
-const carModels = require("./Models/CarModels")
-const Years = require("./Models/Years")
-const Prices = require("./Models/Prices")
-const carArray = require("./Models/CarArray")
-const Users = require("./Models/Users")
-const scrape3Models = require("./Models/scrape3Models")
-const scrape3Cars = require("./Models/scrape3Cars")
+const path=require("path")
+const carModels = require(path.resolve(__dirname+"/Models/carModels"))
+const Years = require(path.resolve(__dirname+"/Models/Years"))
+const Prices = require(path.resolve(__dirname+"/Models/Prices"))
+const carArray = require(path.resolve(__dirname+"/Models/carArray"))
+const Users = require(path.resolve(__dirname+"/Models/Users"))
+const scrape3Models = require(path.resolve(__dirname+"/Models/scrape3Models"))
+const scrape3Cars = require(path.resolve(__dirname+"/Models/scrape3Cars"))
 
 
 require("dotenv").config()

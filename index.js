@@ -4,10 +4,10 @@ const mongoose = require("mongoose")
 const cheerio = require("cheerio")
 
 
-const carModels = require("./Models/CarModels")
+const carModels = require("./Models/carModels")
 const Years = require("./Models/Years")
 const Prices = require("./Models/Prices")
-const carArray = require("./Models/CarArray")
+const carArray = require("./Models/carArray")
 const Users = require("./Models/Users")
 const scrape3Models = require("./Models/scrape3Models")
 const scrape3Cars = require("./Models/scrape3Cars")

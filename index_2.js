@@ -2,11 +2,11 @@ const axios = require("axios")
 const mongoose = require("mongoose")
 const cheerio = require("cheerio")
 
-
-const carModels = require("./Models/CarModels")
+const path=require("path")
+const carModels = require(path.resolve(__dirname+"/Models/carModels"))
 const Years = require("./Models/Years")
 const Prices = require("./Models/Prices")
-const carArray = require("./Models/CarArray")
+const carArray = require("./Models/carArray")
 const Users = require("./Models/Users")
 const scrape3Models = require("./Models/scrape3Models")
 const scrape3Cars = require("./Models/scrape3Cars")
@@ -619,4 +619,6 @@ let random_hour_margin= Math.round(Math.random()*3600000 )
 }
 
 
-deleteAfter7days()
+//deleteAfter7days()
+
+console.log(path.resolve(__dirname+"/Models/CarModels"))
