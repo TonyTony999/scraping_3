@@ -639,7 +639,7 @@ async function getDefinitiveResults() {
 //deleteScrape3("Thu Jan 07 2021")
 //deleteScrape3Cars("Sat Dec 19 2020")
 
-//getDefResults()
+getDefResults()
 //allCars("Thu Mar 18 2021")
 
 //getCars("Sat Dec 19 2020")
