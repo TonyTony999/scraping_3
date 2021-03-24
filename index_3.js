@@ -58,106 +58,79 @@ async function getDefResults() {
                 await axios.get(`https://carros.tucarro.com.co/_Desde_${arr[z]}_PublishedToday_YES`).then(res3 => {
                     const $ = cheerio.load(res3.data)
                     let attempt = $("main").find("div>div>section").html()
+                    //console.log("attempt is", attempt)
                     const $$ = cheerio.load(attempt)
-                    
-                    $$("ol").each((index, element) => {
-                        let ols = cheerio.load(element)
-                        ols("li").each((index_2, li) => {
+                   
+                    $$("li[class=ui-search-layout__item]","ol").each((index,element)=>{
+                       // console.log(element)
+                       
+                       let obj={}
 
-                            let obj = {}
-                            let li_item = cheerio.load(li)
+                       const info=($$(element).html())
+                       const tx=($$(element).text())
+                     
+                       let link_index_1 = info.indexOf("https")
+                       let link_index_2 = info.indexOf('type=item&amp;')
+                       obj.link = info.slice(link_index_1, link_index_2)
 
-                            let info = li_item("div").find("div>div").next().html()
-                            if (info && info.length) {
+                       let marca_index = info.indexOf("ui-search-item__title ui-search-item__group__element")
+                       let marca_index_2 = info.indexOf("</h2>", marca_index)
+                       let marca_slice = info.slice(marca_index, marca_index_2)
+                        if (marca_slice && marca_slice.length !== 0) {
+                            let start_index=marca_slice.indexOf('">')
+                            marca_slice=marca_slice.slice(start_index+2)
+                            obj.title = marca_slice
+                        }
 
-                                let image = li_item("div").find("div>div>a>div>div>div>div>div").html()
-                                let image_index_1 = image.indexOf("https:")
-                                let image_index_2 = image.indexOf("alt=")
-                                let image_slice = image.slice(image_index_1, image_index_2)
-                                obj.img = image_slice
+                        let image_index_1 = info.indexOf("https:",link_index_1+1)
+                        let image_index_2 = info.indexOf('.jpg"',link_index_1+1)
+                        let image_slice = info.slice(image_index_1, image_index_2+4)
+                        obj.img = image_slice
 
-                                let link = li_item("div").find("div>div").html()
-                                let link_index_1 = link.indexOf("https")
-                                let link_index_2 = link.indexOf('type=item&amp;')
-                                obj.link = link.slice(link_index_1, link_index_2)
+                        let price_regex = /\d+.\d+.\d+/g
+                        let price_match = info.match(price_regex)
+                        if (price_match && price_match.length !== 0) {
+                            price_match = price_match[0].replace(/\W+/g, "", "g")
+                            obj.price = parseInt(price_match)
+                        }
 
-                                let price_regex = /\d+.\d+.\d+/g
-                                let price_match = info.match(price_regex)
-                                if (price_match && price_match.length !== 0) {
-                                    price_match = price_match[0].replace(/\W+/g, "", "g")
-                                    obj.price = parseInt(price_match)
-                                }
+                        let year_index_1 = info.indexOf("ui-search-card-attributes__attribute")
+                        let year_index_2 = info.indexOf("ui-search-card-attributes__attribute", year_index_1 + 1)
+                        let year_slice = info.slice(year_index_1, year_index_2)
+                        let year_regex = /\d+/g
+                        let year_match = year_slice.match(year_regex)
+                        if (year_match && year_match.length !== 0) {
 
-                                let year_index_1 = info.indexOf("ui-search-card-attributes__attribute")
-                                let year_index_2 = info.indexOf("ui-search-card-attributes__attribute", year_index_1 + 1)
-                                let year_slice = info.slice(year_index_1, year_index_2)
-                                let year_regex = /\d+/g
-                                let year_match = year_slice.match(year_regex)
-                                if (year_match && year_match.length !== 0) {
-                                    obj.year = parseInt(year_match[0])
-                                }
+                            obj.year = parseInt(year_match[0])
+                        }
 
-                                let kilometraje_regex = /\d+.\d+\sKm/g
-                                let kilometraje_match = info.match(kilometraje_regex)
-                                if (kilometraje_match && kilometraje_match.length !== 0) {
-                                    kilometraje_match=kilometraje_match[0].replace(".", "")
-                                    kilometraje_match=kilometraje_match.match(/\d+/g)
-                                    kilometraje_match=parseInt(kilometraje_match[0])
+                        let location_index = info.indexOf("ui-search-item__group__element ui-search-item__location")
+                        let location_index_2 = info.indexOf("span", location_index)
+                        let location_slice = info.slice(location_index, location_index_2)
+                        if (location_slice && location_slice.length !== 0) {
+                            let start_index=location_slice.indexOf('">')
+                            let last_index=location_slice.indexOf('</')
+                            let ubicacion=location_slice.slice(start_index+2,last_index)
 
-                                    obj.kilometraje = kilometraje_match
-                                }
+                          obj.ubicacion=ubicacion
+                    }
 
-                                let location_index = info.indexOf("ui-search-item__group__element ui-search-item__location")
-                                let location_index_2 = info.indexOf("span", location_index)
-                                let location_slice = info.slice(location_index, location_index_2)
-                                if (location_slice && location_slice.length !== 0) {
-                                    let start_index=location_slice.indexOf('">')
-                                    let last_index=location_slice.indexOf('</')
-                                    let ubicacion=location_slice.slice(start_index+2,last_index)
-                                    if (ubicacion === "Bogot&#xE1; D.C.") {
-                                        ubicacion = "Bogota"
-        
-                                    }
-                                    else if (ubicacion === "Bol&#xED;var") {
-                                        ubicacion = "Bolivar"
-        
-                                    }
-                                    else if (ubicacion === "Atl&#xE1;ntico") {
-                                        ubicacion = "Atlantico"
-        
-                                    }
-                                    else if (ubicacion === "Nari&#xF1;o") {
-                                        ubicacion = "Nariño"
-        
-                                    }
-                                    else if (ubicacion === "C&#xF3;rdoba") {
-                                        ubicacion = "Cordoba"
-        
-                                    }
-                                    
-                                        obj.ubicacion = ubicacion
-                                
-                            }
+                        let kilometraje_regex = /\d+.\d+\sKm/g
+                        let kilometraje_match = info.match(kilometraje_regex)
+                        if (kilometraje_match && kilometraje_match.length !== 0) {
+                            kilometraje_match=kilometraje_match[0].replace(".", "")
+                            kilometraje_match=kilometraje_match.match(/\d+/g)
+                            kilometraje_match=parseInt(kilometraje_match[0])
 
-                                let marca_index = info.indexOf("ui-search-item__title ui-search-item__group__element")
-                                let marca_index_2 = info.indexOf("</h2>", marca_index)
-                                let marca_slice = info.slice(marca_index, marca_index_2)
-                                if (marca_slice && marca_slice.length !== 0) {
-                                    let start_index=marca_slice.indexOf('">')
-                                    marca_slice=marca_slice.slice(start_index+2)
-                                    obj.title = marca_slice
-                                }
+                         obj.kilometraje = kilometraje_match
+                        
+                        }       
+                        obj.date=new Date(Date.now()).toString()            
 
-                                obj.date=new Date(Date.now()).toString()
+                       scrapeData.push(obj)
 
-
-                                //console.log(obj)
-                                scrapeData.push(obj)
-                            }
-
-                        })
-                    })
-                    
+                    } )
+                   // console.log(scrapeData)
                     console.log("SIGUIENTE PAGINA")
 
                 })
@@ -200,7 +173,7 @@ async function getDefResults() {
      })
 
     //processData()
-
+    //getScrapeData()
 
 }
 
@@ -638,7 +611,7 @@ async function getDefinitiveResults() {
 //deleteScrape3Cars()
 //deleteScrape3("Thu Jan 07 2021")
 //deleteScrape3Cars("Sat Dec 19 2020")
-
+console.log(`started script at ${new Date(Date.now()).toString()}`)
 getDefResults()
 //allCars("Thu Mar 18 2021")
 
