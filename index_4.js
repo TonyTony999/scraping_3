@@ -2,14 +2,15 @@ const axios = require("axios")
 const mongoose = require("mongoose")
 const cheerio = require("cheerio")
 
+const path=require("path")
+const carModels = require(path.resolve(__dirname+"/Models/carModels"))
+const Years = require(path.resolve(__dirname+"/Models/Years"))
+const Prices = require(path.resolve(__dirname+"/Models/Prices"))
+const carArray = require(path.resolve(__dirname+"/Models/carArray"))
+const Users = require(path.resolve(__dirname+"/Models/Users"))
+const scrape3Models = require(path.resolve(__dirname+"/Models/scrape3Models"))
+const scrape3Cars = require(path.resolve(__dirname+"/Models/scrape3Cars"))
 
-const carModels = require("./Models/carModels")
-const Years = require("./Models/Years")
-const Prices = require("./Models/Prices")
-const carArray = require("./Models/carArray")
-const Users = require("./Models/Users")
-const scrape3Models = require("./Models/scrape3Models")
-const scrape3Cars = require("./Models/scrape3Cars")
 
 
 require("dotenv").config()
@@ -17,146 +18,6 @@ const MONGO_URL = process.env.MONGO_URL
 
 mongoose.connect(MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true })
 
-
-async function getDefResults() {
-   console.log("STARTED GET DEF RESULTS")
-    async function processData() {
-        let newArr = []
-        return await axios.get("https://carros.tucarro.com.co/_PublishedToday_YES").then(res3 => {
-
-            const $ = cheerio.load(res3.data)
-            let numberCarros = $("main").find("div>div>div>aside>div").next().html()
-            console.log(numberCarros)
-            //let numCars = numberCarros.match(/\d+/)[0]
-            numberCarros = numberCarros.replace(/\W+/g, "")
-            numberCarros = numberCarros.match(/\d+/g)
-            console.log(numberCarros)
-            //console.log(numCars)
-
-            let num = 97
-            let arr = [49, 97]
-            while (num < parseFloat(numberCarros)) {
-                num += 48
-                arr.push(num)
-            }
-            console.log(arr)
-            return arr
-
-        })
-    }
-
-    async function getScrapeData() {
-
-        let arr = await processData()
-       // arr=arr.slice(0,5)
-        let scrapeData = []
-
-        for (let z = 0; z < arr.length; z++) {
-
-            try {
-                await axios.get(`https://carros.tucarro.com.co/_Desde_${arr[z]}_PublishedToday_YES`).then(res3 => {
-                    const $ = cheerio.load(res3.data)
-                    let list = $("main", ".results-item").find("div>div>div>section>ol").html()
-                    $("li").each((index, element) => {
-                        let title = $(element).find("div>a>div>h2").html()
-                        let yearKilometraje = $(element).find("div>a>div>div").next().html()
-                        let price = $(element).find("div>a>div>div>span").next().html()
-                        let ubicacion = $(element).find("div>a>div>div").next().next().next().html()
-                        let img = $(element).find("div>div>div>div>ul>li>a").html()
-                        let link = $(element).find("div").html()
-                        let date = new Date().toString()
-
-                        if (title && yearKilometraje && price && ubicacion) {
-
-                            if (ubicacion === "Bogot&#xE1; D.C.") {
-                                ubicacion = "Bogota"
-
-                            }
-                            else if (ubicacion === "Bol&#xED;var") {
-                                ubicacion = "Bolivar"
-
-                            }
-                            else if (ubicacion === "Atl&#xE1;ntico") {
-                                ubicacion = "Atlantico"
-
-                            }
-                            else if (ubicacion === "Nari&#xF1;o") {
-                                ubicacion = "Nariño"
-
-                            }
-                            else if (ubicacion === "C&#xF3;rdoba") {
-                                ubicacion = "Cordoba"
-
-                            }
-
-
-                            let titleRegex = />(.*)</
-                            let titleMatch = title.match(titleRegex)
-
-                            if (titleMatch) {
-                                title = titleMatch[1]
-                                titleSpanMatch = title.match(/<\/span>/)//acortar titulo cortandolo desde span hasta final
-                                if (titleSpanMatch) {
-                                    title = title.slice(0, title.indexOf(titleSpanMatch[0]))
-                                }
-                            }
-
-                            let imgStart = img.indexOf("https")
-                            let imgEnd = img.indexOf(".jpg")
-                            img = img.slice(imgStart, imgEnd) + (".jpg")
-
-                            let year = yearKilometraje.match(/\d+/)
-                            let kilometraje = yearKilometraje.match(/\d+[" "]km/)
-                            link = link.match(/item-url=[\s\S]+\s$/i)[0].split(" ")
-                            if (link) {
-                                link = (link[0])
-                                link = link.match(/https(.*)/i)[0]
-                            }
-
-                            scrapeData.push({ title: title, year: year, kilometraje: kilometraje, ubicacion: ubicacion, price: price, link: link, img: img, date: date })
-
-                        }
-
-                    })
-
-                })
-
-            } catch (err) {
-                //console.log(err)
-                console.log(arr[z])
-            }
-
-        }
-
-        return scrapeData
-    }
-
-    return await getScrapeData().then(result => {
-        // console.log("result is " + result.length)
-        async function saveCars() {
-            let arr = []
-            for (let i = 0; i < result.length; i++) {
-                let item = await scrape3Cars.create({
-                    title: result[i].title,
-                    year: result[i].year,
-                    kilometraje: result[i].kilometraje,
-                    ubicacion: result[i].ubicacion,
-                    price: result[i].price,
-                    link: result[i].link,
-                    img: result[i].img,
-                    date: result[i].date
-                })
-                arr.push(item)
-            }
-            return arr
-        }
-        saveCars().then(response => {
-            console.log("response length is: ", response.length)
-        })
-
-    })
-
-}
 
 async function allCars(fech) {
 
@@ -241,8 +102,6 @@ async function allCars(fech) {
         arguments.length != 0 ? query = { date: { $regex: new RegExp(String.raw`${fech}`) } } : query = {};
 
         let scrapeData = await scrape3Cars.find(query)
-        //scrapeData=scrapeData.slice(0,5)
-        //console.log(scrapeData.length)
 
         for (let i = 0; i < scrapeData.length; i++) {
             for (let j = 0; j < carModels1.length; j++) {
@@ -444,173 +303,19 @@ async function allCars(fech) {
             return arr
         }
         saveCars().then(response => {
-            console.log("response length for all cars is: ", response.length)
-            //return res.send(response)
+            console.log(`${response.length} cars were added to scrape3Models`)
         })
 
     })
 }
 
-async function deleteScrape3(fecha) {
-    let query
-    arguments.length != 0 ? query = {date:{$regex: new RegExp(String.raw`${fecha}`) } } : query = {}
-
-    let arr = await scrape3Cars.find(query)
-    for (let i = 0; i < arr.length; i++) {
-        await scrape3Cars.findByIdAndDelete(arr[i]._id)
-    }
-    console.log(`deleted ${arr.length} cars from scrape3cars`)
-}
-
-async function deleteScrape3Cars(fecha) {
-
-    let query
-    arguments.length != 0 ? query = {date:{$regex: new RegExp(String.raw`${fecha}`) } } : query = {}
-
-    let arr = await scrape3Models.find(query)
-
-    for (let i = 0; i < arr.length; i++) {
-        await scrape3Models.findByIdAndDelete(arr[i]._id)
-    }
-    console.log("deleted all scrape3 results")
-}
-
-async function getCars(fecha){
-    let query
-    arguments.length !== 0 ? query = {date:{$regex: new RegExp(String.raw`${fecha}`),$options:"i"}}: query = {}
-    let arr = await scrape3Models.find(query)
-
-      console.log("cars are: ",arr)
-    
-    
-
-}
-
-/////////CREATE UPDATE DELETE ARRAY DOCUMENT in carArray COLLECTION WHERE ALL DOCUMETS WILL BE STORED
-
-async function createArrayModel() {
-    let item = await carArray.create({
-        nombre: "nuevo",
-        car_lista: []
-    })
-    console.log(item)
-}
-
-async function updateArray() {
-    let item = await carArray.updateOne(
-        { nombre: "nuevo" },
-        { $push: { car_lista: { a: "1yy", b: "2yyy", c: "tuesday" } } }
-    )
-    console.log(item)
-}
-
-async function sliceArray() {
-    let segment = await carArray.find({ nombre: "nuevo" }, {
-        "car_lista": { $slice: [15,20] }
-    })
-    console.log(segment[0].car_lista.length)
-}
-
-async function removeArrayElement(fecha) {
-    let query;
-    let removed
-    if(arguments.length==0){
-        removed=await carArray.updateOne({nombre:"nuevo"},{$pull:{"car_lista" :{}}})
-        console.log("removed all elements")
-    }
-    else{
-           removed=await carArray.updateOne({nombre:"nuevo"},{$pull:{"car_lista":{"date":{$regex:new RegExp(String.raw`${fecha}`) }}}})
-           console.log(`removed ${removed} of fecha ${fecha}`)
-      } 
-}
-
-async function deleteUserFavorites(id){
-    let removed=await Users.updateOne({_id:id},{$pull:{"myFavourites":{}}})
-    return removed
-
-}
-
-async function addCarsToArray(fecha) {
-    let query
-    arguments.length !== 0 ? query = { date: { $regex: fecha, $options: "i" } } : query = {}
-    let cars = await scrape3Models.find(query)
-    async function saveCars() {
-        if (cars && cars.length !== 0) {
-            for (let i = 0; i < cars.length; i++) {
-                let added = await carArray.updateOne(
-                    { nombre: "nuevo" },
-                    { $push: { car_lista: cars[i] } }
-                )
-            }
-        }
-    }
-    saveCars().then(console.log(`added ${cars.length}cars`))
-
-}
-
-async function verifyCarArr() {
-    let arr = await carArray.find({})
-    if (arr && arr.length != 0) {
-        console.log(arr[0].car_lista.length)
-        /*arr[0].car_lista.forEach((element,index) => {
-            console.log(element,index)
-        })*/
-    }
-}
-
-////RUN BOTH SCRAPING FUNCTIONS
-
 async function trigger_all_cars(){
-    console.log("STARTED_ALL_CARS")
+    console.log(`started all cars at ${new Date(Date.now()).toString()}`)
    let currentDate=new Date(Date.now()).toString()
    currentDate=currentDate.slice(0,currentDate.search(/2021/))
    await allCars(currentDate) 
     
 }
 
-////DELETE POSTS OLDER THAN 7 DAYS
-
-async function deleteAfter7days(){
-    console.log("STARTED DELETE AFTER 7 DAYS")
-    let one_24_day= 86400000
-    let one_week=one_24_day*7
-    let current_Date=Date.now()
-    let arr = await carArray.find({})
-    
-    let all_ids=[]
-    if(arr[0].car_lista && arr[0].car_lista.length!==0){
-        for(let i=0;i<arr[0].car_lista.length;i++){
-            let time_difference=current_Date - new Date(arr[0].car_lista[i].date).getTime()
-           if(time_difference>one_week){
-               console.log(arr[0].car_lista[i].date)
-               all_ids.push(arr[0].car_lista[i]._id)
-               let removed=await carArray.updateOne({nombre:"nuevo"},{$pull:{"car_lista":{"_id":arr[0].car_lista[i]._id}}})
-               let removed_2=await scrape3Models.findByIdAndDelete(arr[0].car_lista[i]._id)
-           }
-        }
-        await deleteScrape3()
-        console.log(`catched ${all_ids.length} cars from car array `) 
-        
-    }
-    
-}
-
-///SET INTERVAL FUNCTION THAT EXECUTES EVERY 24 HOURS TO SCRAPE NEW CAR POSTS
-
-async function delete_older_posts_and_scrape_new (){
-let random_hour_margin= Math.round(Math.random()*3600000 )
-  setTimeout(async x=>{
-    await deleteAfter7days().then(res=>{
-        console.log(`deleted other cars at ${new Date(Date.now()).toString()}`)
-        setTimeout(async x=>{
-          console.log(`started scraping at ${new Date(Date.now()).toString()}`)
-            await getDefinitiveResults()
-        },900000)
-    })
-
-  },random_hour_margin)
-   
-}
-
-
 trigger_all_cars()
+

@@ -6,4 +6,4 @@ export NODE_PATH=/usr/local/lib/node_modules
 
 cd /home/ubuntu/proy/scraping_3
 
-/usr/bin/node /home/ubuntu/proy/scraping_3/index_3.js >> /home/ubuntu/proy/scraping_3/mylogs.log
+/usr/bin/node /home/ubuntu/proy/scraping_3/index_$1.js >> /home/ubuntu/proy/scraping_3/mylogs.log

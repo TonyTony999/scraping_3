@@ -1,16 +1,15 @@
-
 const axios = require("axios")
 const mongoose = require("mongoose")
 const cheerio = require("cheerio")
 
-
-const carModels = require("./Models/carModels")
-const Years = require("./Models/Years")
-const Prices = require("./Models/Prices")
-const carArray = require("./Models/carArray")
-const Users = require("./Models/Users")
-const scrape3Models = require("./Models/scrape3Models")
-const scrape3Cars = require("./Models/scrape3Cars")
+const path = require("path")
+const carModels = require(path.resolve(__dirname + "/Models/carModels"))
+const Years = require(path.resolve(__dirname + "/Models/Years"))
+const Prices = require(path.resolve(__dirname + "/Models/Prices"))
+const carArray = require(path.resolve(__dirname + "/Models/carArray"))
+const Users = require(path.resolve(__dirname + "/Models/Users"))
+const scrape3Models = require(path.resolve(__dirname + "/Models/scrape3Models"))
+const scrape3Cars = require(path.resolve(__dirname + "/Models/scrape3Cars"))
 
 
 require("dotenv").config()
@@ -20,13 +19,14 @@ mongoose.connect(MONGO_URL, { useNewUrlParser: true, useUnifiedTopology: true })
 
 
 async function getDefResults() {
+    console.log(`started getdef at ${new Date(Date.now()).toString()}`)
 
     async function processData() {
         let newArr = []
         return await axios.get("https://carros.tucarro.com.co/_PublishedToday_YES").then(res3 => {
 
             const $ = cheerio.load(res3.data)
-            let numberCarros = $("main").find("div>div>div>aside>div").next().html()
+            let numberCarros = $("main").find("div>div>aside>div").next().html()
             console.log(numberCarros)
             //let numCars = numberCarros.match(/\d+/)[0]
             numberCarros = numberCarros.replace(/\W+/g, "")
@@ -36,7 +36,7 @@ async function getDefResults() {
 
             let num = 97
             let arr = [49, 97]
-            while (num < parseFloat(numberCarros)) {
+            while (num < parseFloat(numberCarros[0])) {
                 num += 48
                 arr.push(num)
             }
@@ -49,7 +49,7 @@ async function getDefResults() {
     async function getScrapeData() {
 
         let arr = await processData()
-       // arr=arr.slice(0,5)
+        arr = arr.slice(4, 6)
         let scrapeData = []
 
         for (let z = 0; z < arr.length; z++) {
@@ -57,80 +57,101 @@ async function getDefResults() {
             try {
                 await axios.get(`https://carros.tucarro.com.co/_Desde_${arr[z]}_PublishedToday_YES`).then(res3 => {
                     const $ = cheerio.load(res3.data)
-                    let list = $("main", ".results-item").find("div>div>div>section>ol").html()
-                    $("li").each((index, element) => {
-                        let title = $(element).find("div>a>div>h2").html()
-                        let yearKilometraje = $(element).find("div>a>div>div").next().html()
-                        let price = $(element).find("div>a>div>div>span").next().html()
-                        let ubicacion = $(element).find("div>a>div>div").next().next().next().html()
-                        let img = $(element).find("div>div>div>div>ul>li>a").html()
-                        let link = $(element).find("div").html()
-                        let date = new Date().toString()
+                    let attempt = $("main").find("div>div>section").html()
+                    //console.log("attempt is", attempt)
+                    const $$ = cheerio.load(attempt)
 
-                        if (title && yearKilometraje && price && ubicacion) {
+                    $$("li[class=ui-search-layout__item]", "ol").each((index, element) => {
+                        // console.log(element)
 
-                            if (ubicacion === "Bogot&#xE1; D.C.") {
-                                ubicacion = "Bogota"
+                        let obj = {}
 
-                            }
-                            else if (ubicacion === "Bol&#xED;var") {
-                                ubicacion = "Bolivar"
+                        const info = ($$(element).html())
+                        const tx = ($$(element).text())
 
-                            }
-                            else if (ubicacion === "Atl&#xE1;ntico") {
-                                ubicacion = "Atlantico"
+                        let link_index_1 = info.indexOf("https")
+                        let link_index_2 = info.indexOf('type=item&amp;')
+                        obj.link = info.slice(link_index_1, link_index_2)
 
-                            }
-                            else if (ubicacion === "Nari&#xF1;o") {
-                                ubicacion = "Nariño"
-
-                            }
-                            else if (ubicacion === "C&#xF3;rdoba") {
-                                ubicacion = "Cordoba"
-
-                            }
-
-
-                            let titleRegex = />(.*)</
-                            let titleMatch = title.match(titleRegex)
-
-                            if (titleMatch) {
-                                title = titleMatch[1]
-                                titleSpanMatch = title.match(/<\/span>/)//acortar titulo cortandolo desde span hasta final
-                                if (titleSpanMatch) {
-                                    title = title.slice(0, title.indexOf(titleSpanMatch[0]))
-                                }
-                            }
-
-                            let imgStart = img.indexOf("https")
-                            let imgEnd = img.indexOf(".jpg")
-                            img = img.slice(imgStart, imgEnd) + (".jpg")
-
-                            let year = yearKilometraje.match(/\d+/)
-                            let kilometraje = yearKilometraje.match(/\d+[" "]km/)
-                            link = link.match(/item-url=[\s\S]+\s$/i)[0].split(" ")
-                            if (link) {
-                                link = (link[0])
-                                link = link.match(/https(.*)/i)[0]
-                            }
-
-                            scrapeData.push({ title: title, year: year, kilometraje: kilometraje, ubicacion: ubicacion, price: price, link: link, img: img, date: date })
-
+                        let marca_index = info.indexOf("ui-search-item__title ui-search-item__group__element")
+                        let marca_index_2 = info.indexOf("</h2>", marca_index)
+                        let marca_slice = info.slice(marca_index, marca_index_2)
+                        if (marca_slice && marca_slice.length !== 0) {
+                            let start_index = marca_slice.indexOf('">')
+                            marca_slice = marca_slice.slice(start_index + 2)
+                            obj.title = marca_slice
                         }
 
+                        let image_index_1 = info.indexOf("https:", link_index_1 + 1)
+                        let image_index_2 = info.indexOf('.jpg"', link_index_1 + 1)
+                        let image_slice = info.slice(image_index_1, image_index_2 + 4)
+                        obj.img = image_slice
+
+                        let start_price_index = info.indexOf("price-tag-fraction")
+                        let info_2 = info.slice(start_price_index)
+                        if (start_price_index && start_price_index !== -1) {
+                            let price_regex = /\d+.\d+.\d+/
+                            let price_match = info_2.match(price_regex)
+                            if (price_match && price_match.length !== 0) {
+                                price_match = price_match[0].replace(/\W+/g, "", "g")
+                                obj.price = parseInt(price_match)
+                            }
+                        }
+
+
+                        let year_index_1 = info.indexOf("ui-search-card-attributes__attribute")
+                        let year_index_2 = info.indexOf("ui-search-card-attributes__attribute", year_index_1 + 1)
+                        let year_slice = info.slice(year_index_1, year_index_2)
+                        let year_regex = /\d+/g
+                        let year_match = year_slice.match(year_regex)
+                        if (year_match && year_match.length !== 0) {
+
+                            obj.year = parseInt(year_match[0])
+                        }
+
+                        let location_index = info.indexOf("ui-search-item__group__element ui-search-item__location")
+                        let location_index_2 = info.indexOf("span", location_index)
+                        let location_slice = info.slice(location_index, location_index_2)
+                        if (location_slice && location_slice.length !== 0) {
+                            let start_index = location_slice.indexOf('">')
+                            let last_index = location_slice.indexOf('</')
+                            let ubicacion = location_slice.slice(start_index + 2, last_index)
+
+                            obj.ubicacion = ubicacion
+                        }
+
+                        let kilometraje_regex = /\d+.\d+\sKm/g
+                        let kilometraje_match = info.match(kilometraje_regex)
+                        if (kilometraje_match && kilometraje_match.length !== 0) {
+                            kilometraje_match = kilometraje_match[0].replace(".", "")
+                            kilometraje_match = kilometraje_match.match(/\d+/g)
+                            kilometraje_match = parseInt(kilometraje_match[0])
+
+                            obj.kilometraje = kilometraje_match
+
+                        }
+                        obj.date = new Date(Date.now()).toString()
+
+
+                        scrapeData.push(obj)
+
                     })
+                    // console.log(scrapeData)
+                    console.log("SIGUIENTE PAGINA")
 
                 })
 
             } catch (err) {
                 //console.log(err)
-                console.log(arr[z])
+                console.log(`error at :${arr[z]}`, err)
             }
 
         }
-
+        console.log(scrapeData)
+        console.log("scrape data length is", scrapeData.length)
         return scrapeData
     }
+
 
     return await getScrapeData().then(result => {
         // console.log("result is " + result.length)
@@ -156,6 +177,9 @@ async function getDefResults() {
         })
 
     })
+
+    //processData()
+    // getScrapeData()
 
 }
 
@@ -365,8 +389,8 @@ async function allCars(fech) {
                                 return acum += prevV
                             })
                             average = sum / cell.length
-                            
-                            let minPD,maxPD,aPD
+
+                            let minPD, maxPD, aPD
 
                             let price = parseFloat(arr[i].price.replace(/\W+/g, ""))//convert price to number and remove points*/
                             let minPriceDif = minPrice - price
@@ -376,7 +400,7 @@ async function allCars(fech) {
 
                             let maxPriceDif = Math.floor(maxPrice - price)
                             maxPriceDif > 0 ? maxPD = `- ${Math.floor((maxPriceDif / maxPrice) * 100)}%`
-                                : maxPD = `+ ${Math.floor((maxPriceDif * -1 /maxPrice) * 100)}%`
+                                : maxPD = `+ ${Math.floor((maxPriceDif * -1 / maxPrice) * 100)}%`
                             arr[i].maxPriceDif = maxPD
 
                             let averagePriceDif = Math.floor(average - price)
@@ -391,7 +415,7 @@ async function allCars(fech) {
                         versionMatch.push({
                             title: arr[i].title, marca: arr[i].marca, year: arr[i].year, price: arr[i].price, averagePrice: average, minPrice: minPrice, maxPrice: maxPrice,
                             ubicacion: arr[i].ubicacion, kilometraje: arr[i].kilometraje, link: arr[i].link, img: arr[i].img, date: arr[i].date, versiones: cell,
-                            minPriceDif:arr[i].minPriceDif,maxPriceDif:arr[i].maxPriceDif,averagePriceDif:arr[i].averagePriceDif
+                            minPriceDif: arr[i].minPriceDif, maxPriceDif: arr[i].maxPriceDif, averagePriceDif: arr[i].averagePriceDif
                         })
                     }
                 }
@@ -430,9 +454,9 @@ async function allCars(fech) {
                     averagePrice: result[i].averagePrice,
                     minPrice: result[i].minPrice,
                     maxPrice: result[i].maxPrice,
-                    minPriceDif:result[i].minPriceDif,
-                    maxPriceDif:result[i].maxPriceDif,
-                    averagePriceDif:result[i].averagePriceDif,
+                    minPriceDif: result[i].minPriceDif,
+                    maxPriceDif: result[i].maxPriceDif,
+                    averagePriceDif: result[i].averagePriceDif,
                     ubicacion: result[i].ubicacion,
                     kilometraje: result[i].kilometraje,
                     link: result[i].link,
@@ -454,7 +478,7 @@ async function allCars(fech) {
 
 async function deleteScrape3(fecha) {
     let query
-    arguments.length != 0 ? query = {date:{$regex: new RegExp(String.raw`${fecha}`) } } : query = {}
+    arguments.length != 0 ? query = { date: { $regex: new RegExp(String.raw`${fecha}`) } } : query = {}
 
     let arr = await scrape3Cars.find(query)
     for (let i = 0; i < arr.length; i++) {
@@ -466,7 +490,7 @@ async function deleteScrape3(fecha) {
 async function deleteScrape3Cars(fecha) {
 
     let query
-    arguments.length != 0 ? query = {date:{$regex: new RegExp(String.raw`${fecha}`) } } : query = {}
+    arguments.length != 0 ? query = { date: { $regex: new RegExp(String.raw`${fecha}`) } } : query = {}
 
     let arr = await scrape3Models.find(query)
 
@@ -476,14 +500,20 @@ async function deleteScrape3Cars(fecha) {
     console.log("deleted all scrape3 results")
 }
 
-async function getCars(fecha){
+async function getCars(fecha) {
     let query
-    arguments.length !== 0 ? query = {date:{$regex: new RegExp(String.raw`${fecha}`),$options:"i"}}: query = {}
+    arguments.length !== 0 ? query = { date: { $regex: new RegExp(String.raw`${fecha}`), $options: "i" } } : query = {}
     let arr = await scrape3Models.find(query)
 
-      console.log("cars are: ",arr)
-    
-    
+    console.log("cars are: ", arr)
+
+
+
+}
+
+async function get_cars_2(fecha) {
+    let arr = await scrape3Cars.find({ date: { $regex: new RegExp(String.raw`${fecha}`), $options: "i" } })
+    console.log(arr)
 
 }
 
@@ -507,7 +537,7 @@ async function updateArray() {
 
 async function sliceArray() {
     let segment = await carArray.find({ nombre: "nuevo" }, {
-        "car_lista": { $slice: [15,20] }
+        "car_lista": { $slice: [15, 20] }
     })
     console.log(segment[0].car_lista.length)
 }
@@ -515,18 +545,18 @@ async function sliceArray() {
 async function removeArrayElement(fecha) {
     let query;
     let removed
-    if(arguments.length==0){
-        removed=await carArray.updateOne({nombre:"nuevo"},{$pull:{"car_lista" :{}}})
-        console.log("removed all elements")
+    if (arguments.length == 0) {
+        removed = await carArray.updateOne({ nombre: "nuevo" }, { $pull: { "car_lista": {} } })
+        console.log("removed all elements from array")
     }
-    else{
-           removed=await carArray.updateOne({nombre:"nuevo"},{$pull:{"car_lista":{"date":{$regex:new RegExp(String.raw`${fecha}`) }}}})
-           console.log(`removed ${removed} of fecha ${fecha}`)
-      } 
+    else {
+        removed = await carArray.updateOne({ nombre: "nuevo" }, { $pull: { "car_lista": { "date": { $regex: new RegExp(String.raw`${fecha}`) } } } })
+        console.log(`removed ${removed} of fecha ${fecha}`)
+    }
 }
 
-async function deleteUserFavorites(id){
-    let removed=await Users.updateOne({_id:id},{$pull:{"myFavourites":{}}})
+async function deleteUserFavorites(id) {
+    let removed = await Users.updateOne({ _id: id }, { $pull: { "myFavourites": {} } })
     return removed
 
 }
@@ -553,86 +583,199 @@ async function verifyCarArr() {
     let arr = await carArray.find({})
     if (arr && arr.length != 0) {
         console.log(arr[0].car_lista.length)
-        /*arr[0].car_lista.forEach((element,index) => {
-            console.log(element,index)
+        /*arr[0].car_lista.forEach((element, index) => {
+            console.log(element, index)
         })*/
     }
 }
 
 ////RUN BOTH SCRAPING FUNCTIONS
 
-async function getDefinitiveResults(){
-   let currentDate=new Date(Date.now()).toString()
-   currentDate=currentDate.slice(0,currentDate.search(/2021/))
-   await getDefResults().then(async res=>{
-       setTimeout(async x=>{
-        await allCars(currentDate).then(async t=>{ ////NOTE ADDED ASYNC T INSTEAD OF T AND AWAIT IN ADD CARS TO ARRAY 
-            setTimeout(async xy=>{
-                await addCarsToArray(currentDate)
-            },180000)
-        })        
-       },180000)
-   })
-}
-
-////DELETE POSTS OLDER THAN 7 DAYS
-
-async function deleteAfter7days(){
-    let one_24_day= 86400000
-    let one_week=one_24_day*7
-   // let random_hour_margin= Math.round(Math.random()*3600000 )
-    //let week_plus_margin= new Date(one_week+random_hour_margin).toString()
-    let current_Date=Date.now()
-    let arr = await carArray.find({})
-    
-    let all_ids=[]
-    if(arr[0].car_lista && arr[0].car_lista.length!==0){
-        for(let i=0;i<arr[0].car_lista.length;i++){
-            let time_difference=current_Date - new Date(arr[0].car_lista[i].date).getTime()
-           if(time_difference>one_week){
-               console.log(arr[0].car_lista[i].date)
-               all_ids.push(arr[0].car_lista[i]._id)
-               let removed=await carArray.updateOne({nombre:"nuevo"},{$pull:{"car_lista":{"_id":arr[0].car_lista[i]._id}}})
-               let removed_2=await scrape3Models.findByIdAndDelete(arr[0].car_lista[i]._id)
-           }
-        }
-        await deleteScrape3()
-        console.log(`catched ${all_ids.length} cars from car array `) 
-        
-    }
-    
-}
-
-///SET INTERVAL FUNCTION THAT EXECUTES EVERY 24 HOURS TO SCRAPE NEW CAR POSTS
-
-async function delete_older_posts_and_scrape_new (){
-let random_hour_margin= Math.round(Math.random()*3600000 )
-  setTimeout(async x=>{
-    await deleteAfter7days().then(res=>{
-        console.log(`deleted other cars at ${new Date(Date.now()).toString()}`)
-        setTimeout(async x=>{
-          console.log(`started scraping at ${new Date(Date.now()).toString()}`)
-            await getDefinitiveResults()
-        },900000)
+async function getDefinitiveResults() {
+    let currentDate = new Date(Date.now()).toString()
+    currentDate = currentDate.slice(0, currentDate.search(/2021/))
+    await getDefResults().then(res => {
+        setTimeout(async x => {
+            await allCars(currentDate).then(async t => { ////NOTE ADDED ASYNC T INSTEAD OF T AND AWAIT IN ADD CARS TO ARRAY 
+                setTimeout(async xy => {
+                    await addCarsToArray(currentDate)
+                }, 80000)
+            })
+        }, 80000)
     })
-
-  },random_hour_margin)
-   
 }
 
-delete_older_posts_and_scrape_new()
+async function populate_collections(collection_name, amount_of_cars) {
+    let one_24_day = 86400000
+    let two_week = one_24_day * 14;
 
 
-//console.log("working")
+    if (collection_name === "scrape3Cars") {
+        let new_cars = []
+        for (let i = 0; i < amount_of_cars; i++) {
+
+            let time = (Date.now() - Math.ceil(two_week * Math.random()))
+            let dte = new Date(time).toString()
+
+            let item = await scrape3Cars.create({
+                title: `random_${i}`,
+                year: `19${i}`,
+                kilometraje: `${Math.ceil(Math.random() * 1000)}`,
+                ubicacion: "random_location",
+                price: `${Math.ceil(Math.random() * 1000)}`,
+                link: "random link",
+                img: "random img",
+                date: `${dte}`
+            })
+            new_cars.push(item)
+        }
+        console.log(`added ${new_cars.length} to scrape3cars`)
+
+    }
+
+    else if (collection_name === "scrape3Models") {
+        let new_cars = []
+        for (let i = 0; i < amount_of_cars; i++) {
+
+            let time = (Date.now() - Math.ceil(two_week * Math.random()))
+            let dte = new Date(time).toString()
+
+            let item = await scrape3Models.create({
+                title: `random_${i}`,
+                marca: `random_marca${i}`,
+                year: [`random_year_${i}`],
+                price: `random_price${i}`,
+                averagePrice: Math.ceil(Math.random() * i),
+                minPrice: Math.ceil(Math.random() * i),
+                maxPrice: Math.ceil(Math.random() * i),
+                minPriceDif: `random_price${i}`,
+                maxPriceDif: `random_price${i}`,
+                averagePriceDif: `random_price${i}`,
+                ubicacion: `random_location${i}`,
+                kilometraje: [`random_kilometraje${i}`],
+                link: `random_link${i}`,
+                img: `random_img${i}`,
+                versiones: [`random_versiones${i}`],
+                date: `${dte}`
+            })
+            new_cars.push(item)
+        }
+        console.log(`added ${new_cars.length} to scrape3Models`)
+
+    }
+
+    else if (collection_name === "scrape3Array") {
+        let added_cars = []
+        let cars = await scrape3Models.find({ title: { $regex: new RegExp(String.raw`random`) } })
+        if (cars && cars.length !== 0) {
+            let arr_length_2 = await carArray.find({})
+            if (arr_length_2 && arr_length_2.length !== 0) console.log("current arr length is", arr_length_2[0].car_lista.length);
+            for (let i = 0; i < cars.length; i++) {
+                added_cars.push(cars[i])
+                let added = await carArray.updateOne(
+                    { nombre: "nuevo" },
+                    { $push: { car_lista: cars[i] } }
+                )
+            }
+        }
+        console.log(`added ${added_cars.length} to scrape3Array`)
+        setTimeout(async () => {
+            let arr_length = await carArray.find({})
+            if (arr_length && arr_length.length !== 0) {
+                console.log(arr_length[0].car_lista.length)
+                console.log("new arr length is: ", arr_length[0].car_lista.length)
+            }
+        }, 10000)
+
+    }
+
+}
+
+async function delete_populated(collection_name) {
+
+    if (collection_name === "scrape3Cars") {
+        let arr = await scrape3Cars.find({ title: { $regex: new RegExp(String.raw`random`) } })
+
+        if (arr && arr.length !== 0) {
+            let deleted_ids = []
+            for (let i = 0; i < arr.length; i++) {
+                deleted_ids.push(arr[i]._id)
+                let deleted = await scrape3Cars.findByIdAndDelete(arr[i]._id)
+            }
+            console.log(`deleted ${deleted_ids.length} random cars from scrape 3 Cars`)
+        }
+        else {
+            console.log("collection is empty")
+        }
+
+    }
+    else if (collection_name === "scrape3Models") {
+        let arr = await scrape3Models.find({ title: { $regex: new RegExp(String.raw`random`) } })
+        if (arr && arr.length !== 0) {
+            let deleted_ids = []
+            for (let i = 0; i < arr.length; i++) {
+                deleted_ids.push(arr[i]._id)
+                let deleted = await scrape3Models.findByIdAndDelete(arr[i]._id)
+            }
+            console.log(`deleted ${deleted_ids.length} random cars from scrape3 Models`)
+        }
+        else {
+            console.log("collection is empty")
+        }
+
+    }
+
+    else if (collection_name === "scrape3Array") {
+        let one_24_day = 86400000
+        let two_week = one_24_day * 14;
+        let one_week = one_24_day * 7
+
+        let arr_length = await carArray.find({})
+        if (arr_length && arr_length.length !== 0) {
+
+            console.log("current arr length is: ", arr_length[0].car_lista.length)
+            let removed = await carArray.updateOne({ nombre: "nuevo" }, { $pull: { "car_lista": { "title": { $regex: new RegExp(String.raw`random`) } } } })
+            console.log(arr_length)
+            console.log(arr_length[0].car_lista.length)
+            console.log("deleted elements from scrape3 array")
+        }
+    }
+}
+
+async function delete_all_populated() {
+    await delete_populated("scrape3Cars")
+    await delete_populated("scrape3Models")
+    await delete_populated("scrape3Array")
+    return ("deleted all")
+
+}
+
+async function populate_all(amount_of_cars) {
+    await populate_collections("scrape3Cars",amount_of_cars)
+    await populate_collections("scrape3Models",amount_of_cars)
+    setTimeout(async () => {
+        await populate_collections("scrape3Array")
+    }, 15000)
+    return ("added all")
+}
+
+async function delete_all_collections() {
+
+    await deleteScrape3Cars()
+    await deleteScrape3()
+    await removeArrayElement()
+    return("deleted all collections")
+}
+
+
+//delete_all_populated().then(res=>console.log(res))
+//populate_all(100).then(res=>console.log(res))
+delete_all_collections().then(res=>console.log(res))
+
 //removeArrayElement()
 
-//addCarsToArray("Tue Feb 16 2021")
+//addCarsToArray("Sat Dec 19 2020")
 //verifyCarArr()
-
-/*setInterval(()=>{
-    console.log("cmon")
-},1000)*/
-
 //processResults()
 
 //getDefinitiveResults()//////////////FINALLY WORKING
@@ -643,14 +786,14 @@ delete_older_posts_and_scrape_new()
     console.log("removed", res))*/
 
 
-/*deleteScrape3Cars()
-deleteScrape3()
-removeArrayElement()*/
+
 
 //deleteScrape3Cars("Sat Dec 19 2020")
-
+//console.log(`started script at ${new Date(Date.now()).toString()}`)
 //getDefResults()
-//allCars("Mon Feb 15 2021")
+//allCars("Thu Mar 18 2021")
 
 //getCars("Sat Dec 19 2020")
 //deleteScrape3Cars()
+
+//get_cars_2("Thu Mar 25 2021")
