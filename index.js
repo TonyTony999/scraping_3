@@ -770,7 +770,7 @@ async function delete_all_collections() {
 
 //delete_all_populated().then(res=>console.log(res))
 //populate_all(100).then(res=>console.log(res))
-delete_all_collections().then(res=>console.log(res))
+//delete_all_collections().then(res=>console.log(res))
 
 //removeArrayElement()
 
@@ -796,4 +796,4 @@ delete_all_collections().then(res=>console.log(res))
 //getCars("Sat Dec 19 2020")
 //deleteScrape3Cars()
 
-//get_cars_2("Thu Mar 25 2021")
+get_cars_2("Sun Mar 28 ")

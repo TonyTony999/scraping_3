@@ -103,53 +103,63 @@ async function allCars(fech) {
 
         let scrapeData = await scrape3Cars.find(query)
 
-        for (let i = 0; i < scrapeData.length; i++) {
-            for (let j = 0; j < carModels1.length; j++) {
-                if (scrapeData[i].title.toLowerCase().match(new RegExp(String.raw`${carModels1[j].marca}`, "i"))) {
+        if(scrapeData && scrapeData.length!==0){
+    
+            for (let i = 0; i < scrapeData.length; i++) {
+                if(scrapeData[i].title){
+                
+               for (let j = 0; j < carModels1.length; j++) {
 
-                    let link = scrapeData[i].link
-                    let price = scrapeData[i].price
-                    let ubicacion = scrapeData[i].ubicacion
-                    let year = scrapeData[i].year
-                    let marca = carModels1[j].marca
-                    let title = scrapeData[i].title
-                    let date = scrapeData[i].date
-                    let img = scrapeData[i].img
-                    let kilometraje = scrapeData[i].kilometraje
-
-                    let modeloArray = await getModelArray(marca)
-                    let modelMatchArr = []
-
-                    if (modeloArray) {
-                        modeloArray.forEach(element => {
-                            let modeloRegex = new RegExp(String.raw`${element}`, "i")
-                            let modeloMatch = title.match(modeloRegex)
-                            if (modeloMatch) {
-                                modelMatchArr.push(element)
-                            }
-                        })
-                    }
-                    if (modelMatchArr && modelMatchArr.length !== 0) {
-                        function maxLength(arr2) {
-                            let max = arr2[0]
-                            for (let z1 = 0; z1 < arr2.length; z1++) {
-                                if (arr2[z1].length > max.length) {
-                                    max = arr2[z1]
+                    if (scrapeData[i].title.toLowerCase().match(new RegExp(String.raw`${carModels1[j].marca}`, "i"))) {
+    
+                        let link = scrapeData[i].link
+                        let price = scrapeData[i].price
+                        let ubicacion = scrapeData[i].ubicacion
+                        let year = scrapeData[i].year
+                        let marca = carModels1[j].marca
+                        let title = scrapeData[i].title
+                        let date = scrapeData[i].date
+                        let img = scrapeData[i].img
+                        let kilometraje = scrapeData[i].kilometraje
+    
+                        let modeloArray = await getModelArray(marca)
+                        let modelMatchArr = []
+    
+                        if (modeloArray) {
+                            modeloArray.forEach(element => {
+                                let modeloRegex = new RegExp(String.raw`${element}`, "i")
+                                let modeloMatch = title.match(modeloRegex)
+                                if (modeloMatch) {
+                                    modelMatchArr.push(element)
                                 }
-                            }
-                            return max
+                            })
                         }
-                        let modelo = maxLength(modelMatchArr)
-                        let versions = await addToArray(marca, modelo, year, ubicacion, price, link)
-                        newArr.push({ title, marca, year, price, ubicacion, link, img, date, kilometraje, versions })
+                        if (modelMatchArr && modelMatchArr.length !== 0) {
+                            function maxLength(arr2) {
+                                let max = arr2[0]
+                                for (let z1 = 0; z1 < arr2.length; z1++) {
+                                    if (arr2[z1].length > max.length) {
+                                        max = arr2[z1]
+                                    }
+                                }
+                                return max
+                            }
+                            let modelo = maxLength(modelMatchArr)
+                            let versions = await addToArray(marca, modelo, year, ubicacion, price, link)
+                            newArr.push({ title, marca, year, price, ubicacion, link, img, date, kilometraje, versions })
+                        }
                     }
                 }
             }
         }
+           // console.log(newArr)
+            return newArr
+        }
 
-
-        return newArr
     }
+ 
+    getResults3(fech)
+
 
     async function getVersions() {
         let arr = await getResults3(fech)
@@ -226,7 +236,7 @@ async function allCars(fech) {
                             
                             let minPD,maxPD,aPD
 
-                            let price = parseFloat(arr[i].price.replace(/\W+/g, ""))//convert price to number and remove points*/
+                            let price = parseFloat(arr[i].price.replace(/\W+/g, ""))//convert price to number and remove points
                             let minPriceDif = minPrice - price
                             minPriceDif > 0 ? minPD = `- ${Math.floor((minPriceDif / minPrice) * 100)}%`
                                 : minPD = `+ ${Math.floor((minPriceDif * -1 / minPrice) * 100)}%`
@@ -262,6 +272,7 @@ async function allCars(fech) {
         return versionMatch
         // return arr
     }
+
     async function sortVersions() {
         let arr = await getVersions()
         let newArr = [...arr]
@@ -275,6 +286,8 @@ async function allCars(fech) {
         }
         return newArr
     }
+
+
     return await sortVersions().then(result => {
 
         async function saveCars() {
